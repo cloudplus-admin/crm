@@ -93,6 +93,10 @@ TEST_DATABASE_URL="postgresql+psycopg://crm:ВАШ_ПАРОЛЬ@localhost:5432/c
 
 `TEST_DATABASE_URL` должен указывать на отдельную тестовую базу: тесты пересоздают в ней таблицы.
 
+На GitHub тесты запускаются сами (`.github/workflows/tests.yml`) при каждом pull request и пуше в `main`:
+pytest на PostgreSQL 16, во `frontend/` — `npm ci`, `npm test` и `npm run build`. Результат виден во вкладке
+Actions и галочкой у PR.
+
 ## Миграции
 
 ```bash
