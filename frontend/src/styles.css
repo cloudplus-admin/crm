@@ -12,6 +12,7 @@ button.link { background: none; border: none; color: #1f6feb; padding: 0 4px; ma
 button.link.active { font-weight: 600; color: #1f2328; }
 .search { margin-bottom: 12px; }
 .search input { width: min(100%, 320px); }
+.sort { margin-bottom: 12px; }
 table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eaeef2; }
 .badge { padding: 2px 8px; border-radius: 10px; font-size: 13px; background: #eaeef2; }

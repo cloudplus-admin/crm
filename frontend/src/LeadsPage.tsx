@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ApiError, Lead, LeadStatus, NewLead, StatusOption, api } from "./api";
 import { searchLeads } from "./search";
+import { LeadSort, sortLeads } from "./sort";
 
 const EMPTY_FORM: NewLead = { name: "", phone: "", status: "new" };
 
@@ -15,11 +16,12 @@ export default function LeadsPage() {
   const [filter, setFilter] = useState<LeadStatus | "">("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<LeadSort>("newest");
   const [form, setForm] = useState<NewLead>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
-  const visibleLeads = searchLeads(leads, query);
+  const visibleLeads = sortLeads(searchLeads(leads, query), sort);
 
   const labelOf = (status: LeadStatus) =>
     statuses.find((s) => s.value === status)?.label ?? status;
@@ -152,6 +154,18 @@ export default function LeadsPage() {
             placeholder="Имя или телефон"
             onChange={(e) => setQuery(e.target.value)}
           />
+        </div>
+        <div className="sort">
+          <label htmlFor="lead-sort">Сортировка</label>
+          <select
+            id="lead-sort"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as LeadSort)}
+          >
+            <option value="newest">Сначала новые</option>
+            <option value="oldest">Сначала старые</option>
+            <option value="name">По имени</option>
+          </select>
         </div>
         <div className="filters">
           Фильтр по статусу:
