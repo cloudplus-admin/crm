@@ -140,6 +140,26 @@ a { color: inherit; }
   background: rgba(255, 255, 255, 0.08);
 }
 
+.lang {
+  display: flex;
+  margin-left: auto;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.lang button {
+  border: none;
+  background: transparent;
+  color: var(--sidebar-text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.lang button:hover { color: #fff; }
+.lang button.active { background: #fff; color: var(--sidebar); }
+
 .content { flex: 1; width: 100%; max-width: 1280px; margin: 0 auto; padding: 20px 16px 96px; }
 
 /* ---------- Заголовок страницы ---------- */
@@ -441,7 +461,7 @@ label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2);
   .leads, .leads tbody { display: block; }
   .leads tbody tr {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "name status" "phone date";
     gap: 6px 12px;
     padding: 14px 16px;
@@ -453,7 +473,8 @@ label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2);
   .cell-name { grid-area: name; min-width: 0; }
   .who .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cell-status { grid-area: status; justify-self: end; }
-  .cell-phone { grid-area: phone; padding-left: 48px !important; }
+  .cell-phone { grid-area: phone; min-width: 0; }
+  .status-select { padding: 0 26px 0 10px; background-position: right 8px center; }
   .leads td.col-date { grid-area: date; justify-self: end; align-self: center; font-size: 12px; }
 
   .form-panel {
@@ -493,6 +514,7 @@ label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2);
   }
   .brand { padding: 0 8px; }
   .nav { flex-direction: column; }
+  .lang { margin: auto 8px 0; align-self: flex-start; }
   .nav-item.disabled, .soon { display: flex; }
   .nav-item.disabled { opacity: 0.55; }
 

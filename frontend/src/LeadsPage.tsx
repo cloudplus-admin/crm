@@ -1,14 +1,15 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, Lead, LeadStatus, NewLead, StatusOption, api } from "./api";
+import { DICTS, LANGS, Lang, initialLang, saveLang } from "./i18n";
 
 const EMPTY_FORM: NewLead = { name: "", phone: "", status: "new" };
 
 const NAV = [
-  { label: "Заявки", icon: "inbox", active: true },
-  { label: "Контакты", icon: "users" },
-  { label: "Сделки", icon: "deals" },
-  { label: "Задачи", icon: "tasks" },
-  { label: "Сообщения", icon: "chat" },
+  { key: "leads", icon: "inbox", active: true },
+  { key: "contacts", icon: "users" },
+  { key: "deals", icon: "deals" },
+  { key: "tasks", icon: "tasks" },
+  { key: "messages", icon: "chat" },
 ] as const;
 
 /** Фильтр хранится в адресе (?status=won), чтобы ссылку можно было отправить. */
@@ -32,15 +33,6 @@ function initials(name: string): string {
     .join("");
 }
 
-const dateFormat = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" });
-
-function pluralLeads(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${n} заявка`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} заявки`;
-  return `${n} заявок`;
-}
 
 function Icon({ name }: { name: string }) {
   const paths: Record<string, string> = {
@@ -71,10 +63,23 @@ export default function LeadsPage() {
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [highlight, setHighlight] = useState<number | null>(null);
+  const [lang, setLang] = useState<Lang>(initialLang);
   const nameInput = useRef<HTMLInputElement>(null);
 
-  const labelOf = (status: LeadStatus) =>
-    statuses.find((s) => s.value === status)?.label ?? status;
+  const t = DICTS[lang];
+  // Для колбэков, созданных один раз: всегда актуальный язык.
+  const tRef = useRef(t);
+  tRef.current = t;
+  const labelOf = (status: LeadStatus) => t.statuses[status] ?? status;
+  // Сообщения API на русском; для известных полей показываем перевод.
+  const fieldError = (field: "name" | "phone") =>
+    formErrors[field] && (lang === "ru" ? formErrors[field] : t.errors[field]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.title = t.pageTitle;
+    saveLang(lang);
+  }, [lang, t]);
   const total = statuses.reduce((sum, s) => sum + s.count, 0);
 
   const loadStatuses = useCallback(async () => {
@@ -87,7 +92,7 @@ export default function LeadsPage() {
     try {
       setLeads(await api.leads(status || undefined));
     } catch {
-      setMessage({ text: "Не удалось загрузить заявки.", error: true });
+      setMessage({ text: tRef.current.errors.loadLeads, error: true });
     } finally {
       setLoading(false);
     }
@@ -96,7 +101,7 @@ export default function LeadsPage() {
   useEffect(() => {
     loadStatuses()
       .then((list) => setFilter(readFilter(list)))
-      .catch(() => setMessage({ text: "Не удалось загрузить статусы.", error: true }));
+      .catch(() => setMessage({ text: tRef.current.errors.loadStatuses, error: true }));
   }, [loadStatuses]);
 
   useEffect(() => {
@@ -143,13 +148,13 @@ export default function LeadsPage() {
       setForm(EMPTY_FORM);
       setFormOpen(false);
       setHighlight(lead.id);
-      setMessage({ text: `Заявка «${lead.name}» добавлена.` });
+      setMessage({ text: t.added(lead.name) });
       await refresh();
     } catch (err) {
       if (err instanceof ApiError && Object.keys(err.fieldErrors).length) {
         setFormErrors(err.fieldErrors);
       } else {
-        setMessage({ text: "Не удалось добавить заявку.", error: true });
+        setMessage({ text: t.errors.add, error: true });
       }
     } finally {
       setSaving(false);
@@ -160,16 +165,16 @@ export default function LeadsPage() {
     try {
       const updated = await api.setStatus(lead.id, status);
       setHighlight(updated.id);
-      setMessage({ text: `Статус заявки «${updated.name}»: ${labelOf(updated.status)}.` });
+      setMessage({ text: t.statusChanged(updated.name, labelOf(updated.status)) });
       await refresh();
     } catch {
-      setMessage({ text: "Не удалось сменить статус.", error: true });
+      setMessage({ text: t.errors.status, error: true });
     }
   }
 
   const tabs: { value: LeadStatus | ""; label: string; count: number }[] = [
-    { value: "", label: "Все", count: total },
-    ...statuses,
+    { value: "", label: t.all, count: total },
+    ...statuses.map((s) => ({ ...s, label: labelOf(s.value) })),
   ];
 
   return (
@@ -179,39 +184,53 @@ export default function LeadsPage() {
           <span className="brand-mark">C</span>
           <span className="brand-name">CRM</span>
         </div>
-        <nav className="nav" aria-label="Разделы">
+        <nav className="nav" aria-label={t.sections}>
           {NAV.map((item) => (
             <a
-              key={item.label}
+              key={item.key}
               href={"active" in item ? "/" : undefined}
               className={"active" in item ? "nav-item active" : "nav-item disabled"}
               aria-current={"active" in item ? "page" : undefined}
               aria-disabled={"active" in item ? undefined : true}
-              title={"active" in item ? undefined : "Скоро"}
+              title={"active" in item ? undefined : t.soon}
             >
               <Icon name={item.icon} />
-              <span>{item.label}</span>
-              {!("active" in item) && <span className="soon">скоро</span>}
+              <span>{t.nav[item.key]}</span>
+              {!("active" in item) && <span className="soon">{t.soon}</span>}
             </a>
           ))}
         </nav>
+        <div className="lang" role="group" aria-label="Til / Язык">
+          {LANGS.map((l) => (
+            <button
+              key={l.value}
+              type="button"
+              lang={l.value}
+              className={lang === l.value ? "active" : undefined}
+              aria-pressed={lang === l.value}
+              onClick={() => setLang(l.value)}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
       </aside>
 
       <main className="content">
         <header className="page-header">
           <div>
-            <h1>Заявки</h1>
-            <p className="subtitle">{statuses.length ? pluralLeads(total) : "Загрузка…"}</p>
+            <h1>{t.title}</h1>
+            <p className="subtitle">{statuses.length ? t.count(total) : t.loading}</p>
           </div>
           <button type="button" className="btn primary add-toggle" onClick={() => setFormOpen(true)}>
             <Icon name="plus" />
-            <span>Новая заявка</span>
+            <span>{t.newLead}</span>
           </button>
         </header>
 
         <div className="layout">
-          <section className="list-card" aria-label="Список заявок">
-            <div className="tabs" role="tablist" aria-label="Фильтр по статусу">
+          <section className="list-card" aria-label={t.list}>
+            <div className="tabs" role="tablist" aria-label={t.filter}>
               {tabs.map((t) => (
                 <button
                   key={t.value || "all"}
@@ -231,10 +250,10 @@ export default function LeadsPage() {
             <table className="leads">
               <thead>
                 <tr>
-                  <th>Имя</th>
-                  <th>Телефон</th>
-                  <th>Статус</th>
-                  <th className="col-date">Добавлена</th>
+                  <th>{t.colName}</th>
+                  <th>{t.colPhone}</th>
+                  <th>{t.colStatus}</th>
+                  <th className="col-date">{t.colAdded}</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,18 +288,18 @@ export default function LeadsPage() {
                     <td className="cell-status">
                       <select
                         className={`status-select ${lead.status}`}
-                        aria-label={`Статус для ${lead.name}`}
+                        aria-label={t.statusFor(lead.name)}
                         value={lead.status}
                         onChange={(e) => changeStatus(lead, e.target.value as LeadStatus)}
                       >
                         {statuses.map((s) => (
                           <option key={s.value} value={s.value}>
-                            {s.label}
+                            {labelOf(s.value)}
                           </option>
                         ))}
                       </select>
                     </td>
-                    <td className="col-date">{dateFormat.format(new Date(lead.created_at))}</td>
+                    <td className="col-date">{t.date(new Date(lead.created_at))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -289,10 +308,10 @@ export default function LeadsPage() {
             {!loading && leads.length === 0 && (
               <div className="empty">
                 <Icon name="inbox" />
-                <p>{filter ? `Нет заявок со статусом «${labelOf(filter)}».` : "Заявок пока нет."}</p>
+                <p>{filter ? t.emptyStatus(labelOf(filter)) : t.emptyAll}</p>
                 {filter && (
                   <button type="button" className="btn ghost" onClick={() => changeFilter("")}>
-                    Показать все
+                    {t.showAll}
                   </button>
                 )}
               </div>
@@ -309,11 +328,11 @@ export default function LeadsPage() {
             aria-labelledby="form-title"
           >
             <div className="form-head">
-              <h2 id="form-title">Новая заявка</h2>
+              <h2 id="form-title">{t.newLead}</h2>
               <button
                 type="button"
                 className="icon-btn close"
-                aria-label="Закрыть"
+                aria-label={t.close}
                 onClick={() => setFormOpen(false)}
               >
                 <Icon name="close" />
@@ -321,21 +340,21 @@ export default function LeadsPage() {
             </div>
             <form onSubmit={addLead} noValidate>
               <div className="field">
-                <label htmlFor="name">Имя</label>
+                <label htmlFor="name">{t.colName}</label>
                 <input
                   id="name"
                   ref={nameInput}
                   value={form.name}
                   maxLength={150}
                   autoComplete="off"
-                  placeholder="Например, Тестовый Клиент"
+                  placeholder={t.namePlaceholder}
                   aria-invalid={!!formErrors.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
-                {formErrors.name && <div className="error">{formErrors.name}</div>}
+                {fieldError("name") && <div className="error">{fieldError("name")}</div>}
               </div>
               <div className="field">
-                <label htmlFor="phone">Телефон</label>
+                <label htmlFor="phone">{t.colPhone}</label>
                 <input
                   id="phone"
                   type="tel"
@@ -347,10 +366,10 @@ export default function LeadsPage() {
                   aria-invalid={!!formErrors.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
-                {formErrors.phone && <div className="error">{formErrors.phone}</div>}
+                {fieldError("phone") && <div className="error">{fieldError("phone")}</div>}
               </div>
               <div className="field">
-                <label htmlFor="status">Статус</label>
+                <label htmlFor="status">{t.colStatus}</label>
                 <select
                   id="status"
                   value={form.status}
@@ -358,13 +377,13 @@ export default function LeadsPage() {
                 >
                   {statuses.map((s) => (
                     <option key={s.value} value={s.value}>
-                      {s.label}
+                      {labelOf(s.value)}
                     </option>
                   ))}
                 </select>
               </div>
               <button type="submit" className="btn primary block" disabled={saving}>
-                {saving ? "Сохраняем…" : "Добавить"}
+                {saving ? t.saving : t.add}
               </button>
             </form>
           </section>

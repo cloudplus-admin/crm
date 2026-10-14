@@ -13,8 +13,10 @@
 
 Страница адаптивная: на десктопе боковое меню и форма справа, на планшете форма открывается
 окном, на телефоне строки становятся карточками, а форма выезжает снизу. Тёмная тема по настройке системы.
+Язык интерфейса: русский или узбекский (латиница), переключатель RU/UZ, выбор запоминается.
 Скриншоты: [планшет](docs/screenshots/tablet.png), [телефон](docs/screenshots/mobile.png),
-[форма на телефоне](docs/screenshots/mobile-form.png).
+[форма на телефоне](docs/screenshots/mobile-form.png),
+[на узбекском](docs/screenshots/desktop-uz.png), [на узбекском, телефон](docs/screenshots/mobile-uz.png).
 
 ## Быстрый старт (make)
 
@@ -110,7 +112,7 @@ alembic downgrade -1
 - `app/models.py` модель `Lead`, статусы, нормализация телефона.
 - `app/schemas.py` схемы Pydantic и проверка имени и телефона.
 - `app/main.py` JSON API и раздача собранного фронтенда.
-- `frontend/` React-приложение: `src/LeadsPage.tsx` страница, `src/api.ts` клиент API.
+- `frontend/` React-приложение: `src/LeadsPage.tsx` страница, `src/api.ts` клиент API, `src/i18n.ts` тексты RU/UZ.
 - `app/seed.py` демо-данные.
 - `migrations/` миграции Alembic.
 - `Dockerfile`, `docker-compose.yml`, `docker/entrypoint.sh` контейнеры (приложение работает не от root).
