@@ -1,4 +1,5 @@
 """Подключение к БД. Адрес берётся только из переменной окружения DATABASE_URL."""
+
 import os
 
 from sqlalchemy import create_engine
@@ -9,8 +10,7 @@ def get_database_url() -> str:
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError(
-            "Не задан DATABASE_URL, например "
-            "postgresql+psycopg://crm:ПАРОЛЬ@localhost:5432/crm"
+            "Не задан DATABASE_URL, например postgresql+psycopg://crm:ПАРОЛЬ@localhost:5432/crm"
         )
     return url
 

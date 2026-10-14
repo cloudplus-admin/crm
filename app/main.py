@@ -1,4 +1,5 @@
 """JSON API заявок и раздача собранного React-фронтенда."""
+
 import os
 from pathlib import Path
 
@@ -67,6 +68,8 @@ def update_lead_status(
 app.include_router(api)
 
 # Собранный фронтенд (frontend/dist). В режиме разработки его раздаёт Vite.
-FRONTEND_DIST = Path(os.environ.get("FRONTEND_DIST", Path(__file__).parent.parent / "frontend" / "dist"))
+FRONTEND_DIST = Path(
+    os.environ.get("FRONTEND_DIST", Path(__file__).parent.parent / "frontend" / "dist")
+)
 if FRONTEND_DIST.is_dir():
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")

@@ -21,7 +21,9 @@ def test_statuses(client):
 
 
 def test_add_lead(client, session_factory):
-    resp = client.post("/api/leads", json={"name": " Тест Добавленный ", "phone": "+998 00 000-00-13"})
+    resp = client.post(
+        "/api/leads", json={"name": " Тест Добавленный ", "phone": "+998 00 000-00-13"}
+    )
     assert resp.status_code == 201
     body = resp.json()
     assert body["name"] == "Тест Добавленный"

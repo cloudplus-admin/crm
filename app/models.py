@@ -1,6 +1,6 @@
 import enum
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
 
-class LeadStatus(str, enum.Enum):
+class LeadStatus(enum.StrEnum):
     NEW = "new"
     IN_PROGRESS = "in_progress"
     WON = "won"
@@ -36,7 +36,7 @@ def normalize_phone(raw: str) -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Lead(Base):

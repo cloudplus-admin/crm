@@ -9,41 +9,55 @@
 
 В Docker собирается один образ: React собирается в статику, и её раздаёт тот же FastAPI.
 
-## Запуск в Docker (рекомендуется)
+## Быстрый старт (make)
 
 ```bash
 cd crm
-cp .env.example .env               # и задайте свой POSTGRES_PASSWORD
-docker compose up -d --build       # миграции применяются автоматически при старте app
-docker compose exec app python -m app.seed   # 5 вымышленных заявок
+make up       # создаст .env со случайным паролем БД, соберёт и запустит всё
+make seed     # 5 вымышленных заявок
 ```
 
-Открыть http://127.0.0.1:8000/ (автодокументация API: http://127.0.0.1:8000/docs).
-Остановить: `docker compose down` (с удалением данных БД: `docker compose down -v`).
+Открыть http://127.0.0.1:8000/ (документация API: http://127.0.0.1:8000/docs).
+Все команды: `make help`.
+
+| Команда | Что делает |
+|---|---|
+| `make up` / `make down` | запустить / остановить приложение и БД (данные сохраняются) |
+| `make logs`, `make ps` | логи приложения, состояние контейнеров |
+| `make migrate`, `make seed` | применить миграции, добавить демо-данные |
+| `make psql` | консоль PostgreSQL |
+| `make reset` | удалить контейнеры и данные БД (спросит подтверждение) |
+| `make install` | локально: `.venv` с зависимостями Python и `npm ci` во `frontend/` |
+| `make db` + `make dev-api` + `make dev-web` | разработка: БД в Docker, API на :8000, фронтенд на http://localhost:5173 |
+| `make migration m="описание"` | новая миграция по изменениям моделей (проверьте файл руками) |
+| `make test`, `make test-pg` | тесты API на SQLite / на PostgreSQL (база `crm_test`) |
+| `make lint`, `make format` | ruff и проверка TypeScript / автоформатирование Python |
+
+На Windows `make` проще всего запускать из WSL. Без `make` те же действия делаются командами ниже.
+
+## Запуск в Docker без make
+
+```bash
+cp .env.example .env               # и задайте свой POSTGRES_PASSWORD
+docker compose up -d --build       # миграции применяются автоматически при старте app
+docker compose exec app python -m app.seed
+```
 
 Пароль в `.env` лучше задавать без символов `@ : / %`, иначе его нужно URL-кодировать в `DATABASE_URL`.
 
-## Разработка без Docker
+## Разработка без Docker и make
 
-Нужны PostgreSQL (можно поднять только базу: `docker compose up -d db`), Python 3.12+ и Node.js 20+.
-
-Бэкенд (терминал 1):
+Нужны PostgreSQL (например, `docker compose up -d db`), Python 3.12+ и Node.js 20+.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 export DATABASE_URL="postgresql+psycopg://crm:ВАШ_ПАРОЛЬ@localhost:5432/crm"
 alembic upgrade head
 python -m app.seed
-uvicorn app.main:app --reload
-```
+uvicorn app.main:app --reload                        # API на :8000
 
-Фронтенд (терминал 2), с горячей перезагрузкой; запросы `/api` проксируются на :8000:
-
-```bash
-cd frontend
-npm ci
-npm run dev        # http://localhost:5173
+cd frontend && npm ci && npm run dev                 # в другом терминале: http://localhost:5173
 ```
 
 ## Что проверить
@@ -93,6 +107,7 @@ alembic downgrade -1
 - `app/seed.py` демо-данные.
 - `migrations/` миграции Alembic.
 - `Dockerfile`, `docker-compose.yml`, `docker/entrypoint.sh` контейнеры (приложение работает не от root).
+- `Makefile` команды проекта (`make help`), `pyproject.toml` настройки ruff и pytest.
 - `tests/` тесты на pytest.
 
 ## Лицензии зависимостей
@@ -108,6 +123,7 @@ alembic downgrade -1
 | react, react-dom | MIT | |
 | vite, @vitejs/plugin-react, typescript | MIT / Apache-2.0 | только для сборки |
 | pytest (dev) | MIT | |
+| ruff (dev) | MIT | |
 | httpx (dev) | BSD-3-Clause | |
 
 Все npm-зависимости фронтенда (включая транзитивные) проверены `license-checker`: MIT, ISC, Apache-2.0,

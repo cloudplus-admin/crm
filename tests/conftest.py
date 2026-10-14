@@ -27,10 +27,12 @@ def session_factory():
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as s:
-        s.add_all([
-            Lead(name="Тест Новый", phone="+998000000011"),
-            Lead(name="Тест Успешный", phone="+998000000012", status=LeadStatus.WON),
-        ])
+        s.add_all(
+            [
+                Lead(name="Тест Новый", phone="+998000000011"),
+                Lead(name="Тест Успешный", phone="+998000000012", status=LeadStatus.WON),
+            ]
+        )
         s.commit()
     yield factory
     Base.metadata.drop_all(engine)

@@ -4,6 +4,7 @@
 
 Код «+998 00» не выдан ни одному оператору Узбекистана. Повторный запуск дублей не создаёт.
 """
+
 from sqlalchemy import select
 
 from .db import SessionLocal, get_engine
