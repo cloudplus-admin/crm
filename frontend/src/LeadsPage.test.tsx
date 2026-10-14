@@ -29,6 +29,40 @@ afterEach(() => {
 });
 
 describe("состояние списка заявок в URL", () => {
+  it("открывает первую страницу при page=-1", async () => {
+    window.history.replaceState(null, "", "/?page=-1");
+
+    render(<LeadsPage />);
+
+    await screen.findByText("Страница 1 из 3");
+    expect(screen.getByText("Тест 12")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Назад" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Не удалось загрузить заявки.")).toBeNull();
+  });
+
+  it("показывает все заявки при неизвестном status", async () => {
+    window.history.replaceState(null, "", "/?status=unknown");
+
+    render(<LeadsPage />);
+
+    await screen.findByText("Страница 1 из 3");
+    expect(screen.getByRole("button", { name: "Все" }).className).toContain("active");
+    expect(api.leads).toHaveBeenCalledWith(undefined);
+    expect(screen.getByText("Тест 12")).toBeTruthy();
+    expect(screen.queryByText("Не удалось загрузить заявки.")).toBeNull();
+  });
+
+  it("использует сортировку по новым заявкам при неизвестном sort", async () => {
+    window.history.replaceState(null, "", "/?sort=unknown");
+
+    render(<LeadsPage />);
+
+    await screen.findByText("Страница 1 из 3");
+    expect((screen.getByLabelText("Сортировка") as HTMLSelectElement).value).toBe("newest");
+    expect(screen.getAllByRole("row")[1].querySelector("td")?.textContent).toBe("Тест 12");
+    expect(screen.queryByText("Не удалось загрузить заявки.")).toBeNull();
+  });
+
   it("восстанавливает поиск, статус, сортировку и страницу после повторного открытия", async () => {
     window.history.replaceState(null, "", "/?q=%D0%A2%D0%B5%D1%81%D1%82&status=new&sort=oldest&page=2");
 
