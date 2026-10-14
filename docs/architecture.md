@@ -113,3 +113,16 @@ class Connector(Protocol):
   использовании Meta или Google).
 - HTTPS везде, webhooks с проверкой подписи/секрета платформы.
 - Резервные копии PostgreSQL, журнал действий пользователей (кто что изменил).
+
+### Кандидаты на хостинг (проверено по сайтам провайдеров 14.10.2026, цены и условия уточнять)
+
+| Провайдер | Что важно для нас | Не подтверждено |
+|---|---|---|
+| [UzCloud](https://uzcloud.uz/en/cloud/dbaas) (АО «Узбектелеком») | Managed PostgreSQL и Valkey, Managed Kubernetes, S3, резервное копирование; данные в Узбекистане, оплата в UZS | цены (только калькулятор) |
+| [Serverspace.uz](https://serverspace.uz/services/vps-server/vps-uzbekistan/) | VPS в Ташкенте, Managed Kubernetes, S3, публичные цены, API | managed PostgreSQL |
+| [Cloupard](https://cloupard.uz/) | VPS, S3, бесплатные бэкапы ВМ | Kubernetes, managed PostgreSQL, что данные остаются в РУз |
+| [UNICON](https://dc.unicon.uz/vps), [UZINFOCOM (dc.uz)](https://serverspace.uz/about/blog/top-5-oblachnyh-provajderov-v-uzbekistane-2026-rejting-i-sravnenie-czen/), East Telecom, BILLURCOM | VPS, colocation, выделенные серверы | managed-сервисы, цены |
+
+Предварительный выбор: UzCloud, потому что там есть всё, что нужно стеку (PostgreSQL, Valkey,
+Kubernetes, S3) как управляемые сервисы. Перед решением: запросить коммерческие предложения и SLA
+у 2–3 провайдеров и согласовать с юристом требования закона о персональных данных.
