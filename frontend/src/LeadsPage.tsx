@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ApiError, Lead, LeadStatus, NewLead, StatusOption, api } from "./api";
 import { searchLeads } from "./search";
 import { LeadSort, sortLeads } from "./sort";
+import { paginateLeads } from "./pagination";
 
 const EMPTY_FORM: NewLead = { name: "", phone: "", status: "new" };
 
@@ -17,11 +18,13 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LeadSort>("newest");
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState<NewLead>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   const visibleLeads = sortLeads(searchLeads(leads, query), sort);
+  const pagination = paginateLeads(visibleLeads, page);
 
   const labelOf = (status: LeadStatus) =>
     statuses.find((s) => s.value === status)?.label ?? status;
@@ -51,7 +54,10 @@ export default function LeadsPage() {
   }, [filter, statuses, loadLeads]);
 
   useEffect(() => {
-    const onPop = () => setFilter(readFilter(statuses));
+    const onPop = () => {
+      setFilter(readFilter(statuses));
+      setPage(1);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [statuses]);
@@ -60,6 +66,7 @@ export default function LeadsPage() {
     const url = status ? `?status=${status}` : window.location.pathname;
     window.history.pushState(null, "", url);
     setFilter(status);
+    setPage(1);
   }
 
   async function addLead(e: FormEvent) {
@@ -69,6 +76,7 @@ export default function LeadsPage() {
       const lead = await api.createLead(form);
       setForm(EMPTY_FORM);
       setMessage({ text: `Заявка «${lead.name}» добавлена.` });
+      setPage(1);
       await loadLeads(filter);
     } catch (err) {
       if (err instanceof ApiError && Object.keys(err.fieldErrors).length) {
@@ -152,7 +160,10 @@ export default function LeadsPage() {
             type="search"
             value={query}
             placeholder="Имя или телефон"
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
         <div className="sort">
@@ -160,7 +171,10 @@ export default function LeadsPage() {
           <select
             id="lead-sort"
             value={sort}
-            onChange={(e) => setSort(e.target.value as LeadSort)}
+            onChange={(e) => {
+              setSort(e.target.value as LeadSort);
+              setPage(1);
+            }}
           >
             <option value="newest">Сначала новые</option>
             <option value="oldest">Сначала старые</option>
@@ -198,7 +212,7 @@ export default function LeadsPage() {
             </tr>
           </thead>
           <tbody>
-            {visibleLeads.map((lead) => (
+            {pagination.items.map((lead) => (
               <tr key={lead.id}>
                 <td>{lead.name}</td>
                 <td>{lead.phone}</td>
@@ -227,6 +241,25 @@ export default function LeadsPage() {
             )}
           </tbody>
         </table>
+        {!loading && visibleLeads.length > 0 && (
+          <nav className="pagination" aria-label="Страницы заявок">
+            <button
+              type="button"
+              disabled={!pagination.hasPrevious}
+              onClick={() => setPage(pagination.page - 1)}
+            >
+              Назад
+            </button>
+            <span>Страница {pagination.page} из {pagination.pageCount}</span>
+            <button
+              type="button"
+              disabled={!pagination.hasNext}
+              onClick={() => setPage(pagination.page + 1)}
+            >
+              Вперед
+            </button>
+          </nav>
+        )}
       </section>
     </main>
   );
