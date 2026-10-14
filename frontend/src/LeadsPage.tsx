@@ -3,22 +3,15 @@ import { ApiError, Lead, LeadStatus, NewLead, StatusOption, api } from "./api";
 import { searchLeads } from "./search";
 import { LeadSort, sortLeads } from "./sort";
 import { paginateLeads } from "./pagination";
+import { ListState, readListState, urlForListState } from "./listState";
 
 const EMPTY_FORM: NewLead = { name: "", phone: "", status: "new" };
 
-/** Фильтр хранится в адресе (?status=won), чтобы ссылку можно было отправить. */
-function readFilter(statuses: StatusOption[]): LeadStatus | "" {
-  const value = new URLSearchParams(window.location.search).get("status") ?? "";
-  return statuses.some((s) => s.value === value) ? (value as LeadStatus) : "";
-}
-
 export default function LeadsPage() {
   const [statuses, setStatuses] = useState<StatusOption[]>([]);
-  const [filter, setFilter] = useState<LeadStatus | "">("");
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<LeadSort>("newest");
-  const [page, setPage] = useState(1);
+  const [listState, setListState] = useState<ListState>(() => readListState(window.location.search));
+  const { filter, query, sort, page } = listState;
   const [form, setForm] = useState<NewLead>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
@@ -44,7 +37,6 @@ export default function LeadsPage() {
       .statuses()
       .then((list) => {
         setStatuses(list);
-        setFilter(readFilter(list));
       })
       .catch(() => setMessage({ text: "Не удалось загрузить статусы.", error: true }));
   }, []);
@@ -54,19 +46,16 @@ export default function LeadsPage() {
   }, [filter, statuses, loadLeads]);
 
   useEffect(() => {
-    const onPop = () => {
-      setFilter(readFilter(statuses));
-      setPage(1);
-    };
+    const onPop = () => setListState(readListState(window.location.search));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [statuses]);
+  }, []);
 
-  function changeFilter(status: LeadStatus | "") {
-    const url = status ? `?status=${status}` : window.location.pathname;
-    window.history.pushState(null, "", url);
-    setFilter(status);
-    setPage(1);
+  function changeListState(update: Partial<ListState>) {
+    const next = { ...listState, ...update };
+    if (next.query === query && next.filter === filter && next.sort === sort && next.page === page) return;
+    window.history.pushState(null, "", urlForListState(window.location.href, next));
+    setListState(next);
   }
 
   async function addLead(e: FormEvent) {
@@ -76,7 +65,7 @@ export default function LeadsPage() {
       const lead = await api.createLead(form);
       setForm(EMPTY_FORM);
       setMessage({ text: `Заявка «${lead.name}» добавлена.` });
-      setPage(1);
+      changeListState({ page: 1 });
       await loadLeads(filter);
     } catch (err) {
       if (err instanceof ApiError && Object.keys(err.fieldErrors).length) {
@@ -161,8 +150,7 @@ export default function LeadsPage() {
             value={query}
             placeholder="Имя или телефон"
             onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(1);
+              changeListState({ query: e.target.value, page: 1 });
             }}
           />
         </div>
@@ -172,8 +160,7 @@ export default function LeadsPage() {
             id="lead-sort"
             value={sort}
             onChange={(e) => {
-              setSort(e.target.value as LeadSort);
-              setPage(1);
+              changeListState({ sort: e.target.value as LeadSort, page: 1 });
             }}
           >
             <option value="newest">Сначала новые</option>
@@ -186,7 +173,7 @@ export default function LeadsPage() {
           <button
             type="button"
             className={filter === "" ? "link active" : "link"}
-            onClick={() => changeFilter("")}
+            onClick={() => changeListState({ filter: "", page: 1 })}
           >
             Все
           </button>
@@ -195,7 +182,7 @@ export default function LeadsPage() {
               key={s.value}
               type="button"
               className={filter === s.value ? "link active" : "link"}
-              onClick={() => changeFilter(s.value)}
+              onClick={() => changeListState({ filter: s.value, page: 1 })}
             >
               {s.label}
             </button>
@@ -246,7 +233,7 @@ export default function LeadsPage() {
             <button
               type="button"
               disabled={!pagination.hasPrevious}
-              onClick={() => setPage(pagination.page - 1)}
+              onClick={() => changeListState({ page: pagination.page - 1 })}
             >
               Назад
             </button>
@@ -254,7 +241,7 @@ export default function LeadsPage() {
             <button
               type="button"
               disabled={!pagination.hasNext}
-              onClick={() => setPage(pagination.page + 1)}
+              onClick={() => changeListState({ page: pagination.page + 1 })}
             >
               Вперед
             </button>
