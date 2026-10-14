@@ -18,6 +18,12 @@ def test_statuses(client):
     data = client.get("/api/statuses").json()
     assert [s["value"] for s in data] == ["new", "in_progress", "won", "lost"]
     assert data[0]["label"] == "Новая"
+    assert {s["value"]: s["count"] for s in data} == {
+        "new": 1,
+        "in_progress": 0,
+        "won": 1,
+        "lost": 0,
+    }
 
 
 def test_add_lead(client, session_factory):

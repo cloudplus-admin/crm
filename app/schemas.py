@@ -46,3 +46,4 @@ class LeadOut(BaseModel):
 class StatusOut(BaseModel):
     value: LeadStatus
     label: str
+    count: int = 0

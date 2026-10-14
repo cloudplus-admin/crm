@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .db import get_session
@@ -33,8 +33,9 @@ async def validation_error_handler(_request: Request, exc: RequestValidationErro
 
 
 @api.get("/statuses", response_model=list[StatusOut])
-def list_statuses():
-    return [StatusOut(value=s, label=STATUS_LABELS[s]) for s in LeadStatus]
+def list_statuses(session: Session = Depends(get_session)):
+    counts = dict(session.execute(select(Lead.status, func.count()).group_by(Lead.status)).all())
+    return [StatusOut(value=s, label=STATUS_LABELS[s], count=counts.get(s, 0)) for s in LeadStatus]
 
 
 @api.get("/leads", response_model=list[LeadOut])

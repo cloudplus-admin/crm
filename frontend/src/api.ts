@@ -12,6 +12,8 @@ export interface Lead {
 export interface StatusOption {
   value: LeadStatus;
   label: string;
+  /** Сколько заявок в этом статусе (без учёта фильтра). */
+  count: number;
 }
 
 export interface NewLead {
