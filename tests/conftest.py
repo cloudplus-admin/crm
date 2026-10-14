@@ -45,11 +45,5 @@ def client(session_factory):
 
     app.dependency_overrides[get_session] = override
     with TestClient(app) as c:
-        c.get("/")  # получаем CSRF-cookie
         yield c
     app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def csrf(client):
-    return client.cookies["csrftoken"]

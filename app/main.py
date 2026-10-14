@@ -1,138 +1,72 @@
-"""Страница «Заявки»: таблица, добавление, фильтр по статусу, смена статуса."""
-import hmac
-import secrets
+"""JSON API заявок и раздача собранного React-фронтенда."""
+import os
 from pathlib import Path
-from urllib.parse import quote, unquote, urlencode
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .db import get_session
-from .models import PHONE_RE, Lead, LeadStatus, normalize_phone
-
-CSRF_COOKIE = "csrftoken"
-FLASH_COOKIE = "flash"
-
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
-
+from .models import STATUS_LABELS, Lead, LeadStatus
+from .schemas import LeadCreate, LeadOut, LeadStatusUpdate, StatusOut
 
 # Схема БД создаётся миграциями: alembic upgrade head.
 app = FastAPI(title="CRM")
+api = APIRouter(prefix="/api")
 
 
-def _parse_status(value: str | None) -> LeadStatus | None:
-    try:
-        return LeadStatus(value) if value else None
-    except ValueError:
-        return None
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_request: Request, exc: RequestValidationError):
+    # Отдаём фронтенду ошибки по полям: {"errors": {"phone": "..."}}.
+    errors: dict[str, str] = {}
+    for err in exc.errors():
+        field = str(err["loc"][-1]) if err["loc"] else "__all__"
+        msg = err["msg"].removeprefix("Value error, ")
+        if err["type"] == "enum":
+            msg = "Неизвестный статус."
+        errors.setdefault(field, msg)
+    return JSONResponse(status_code=422, content={"errors": errors})
 
 
-def _list_url(status: LeadStatus | None) -> str:
-    return "/?" + urlencode({"status": status.value}) if status else "/"
+@api.get("/statuses", response_model=list[StatusOut])
+def list_statuses():
+    return [StatusOut(value=s, label=STATUS_LABELS[s]) for s in LeadStatus]
 
 
-def _check_csrf(request: Request, token: str) -> None:
-    # Double-submit: токен из скрытого поля формы должен совпасть с cookie.
-    cookie = request.cookies.get(CSRF_COOKIE, "")
-    if not cookie or not hmac.compare_digest(cookie, token):
-        raise HTTPException(status_code=403, detail="CSRF token mismatch")
-
-
-def _redirect(url: str, flash: str) -> RedirectResponse:
-    resp = RedirectResponse(url, status_code=303)
-    # Cookie допускает только latin-1, поэтому кириллицу кодируем.
-    resp.set_cookie(FLASH_COOKIE, quote(flash), max_age=30, httponly=True, samesite="lax")
-    return resp
-
-
-def _render(request, session, current_status, form=None, errors=None, status_code=200):
+@api.get("/leads", response_model=list[LeadOut])
+def list_leads(status: LeadStatus | None = None, session: Session = Depends(get_session)):
     query = select(Lead).order_by(Lead.created_at.desc(), Lead.id.desc())
-    if current_status:
-        query = query.where(Lead.status == current_status)
-
-    csrf = request.cookies.get(CSRF_COOKIE) or secrets.token_urlsafe(32)
-    resp = templates.TemplateResponse(
-        request,
-        "leads.html",
-        {
-            "leads": session.scalars(query).all(),
-            "statuses": list(LeadStatus),
-            "current_status": current_status,
-            "form": form or {"name": "", "phone": "", "status": LeadStatus.NEW.value},
-            "errors": errors or {},
-            "flash": unquote(request.cookies.get(FLASH_COOKIE, "")),
-            "csrf_token": csrf,
-        },
-        status_code=status_code,
-    )
-    resp.set_cookie(CSRF_COOKIE, csrf, httponly=True, samesite="lax")
-    resp.delete_cookie(FLASH_COOKIE)
-    return resp
+    if status:
+        query = query.where(Lead.status == status)
+    return session.scalars(query).all()
 
 
-@app.get("/", response_class=HTMLResponse)
-def lead_list(request: Request, status: str | None = None, session: Session = Depends(get_session)):
-    return _render(request, session, _parse_status(status))
-
-
-@app.post("/", response_class=HTMLResponse)
-def lead_create(
-    request: Request,
-    status_filter: str | None = None,
-    name: str = Form(""),
-    phone: str = Form(""),
-    status: str = Form(LeadStatus.NEW.value),
-    csrf_token: str = Form(""),
-    session: Session = Depends(get_session),
-):
-    _check_csrf(request, csrf_token)
-    current = _parse_status(status_filter)
-
-    name = name.strip()
-    phone_norm = normalize_phone(phone)
-    lead_status = _parse_status(status)
-    errors = {}
-    if not name:
-        errors["name"] = "Укажите имя."
-    elif len(name) > 150:
-        errors["name"] = "Не длиннее 150 символов."
-    if not PHONE_RE.match(phone_norm):
-        errors["phone"] = "Телефон в формате +998XXXXXXXXX (12 цифр после плюса)."
-    if lead_status is None:
-        errors["status"] = "Неизвестный статус."
-
-    if errors:
-        form = {"name": name, "phone": phone, "status": status}
-        return _render(request, session, current, form, errors, status_code=422)
-
-    lead = Lead(name=name, phone=phone_norm, status=lead_status)
+@api.post("/leads", response_model=LeadOut, status_code=201)
+def create_lead(data: LeadCreate, session: Session = Depends(get_session)):
+    lead = Lead(name=data.name, phone=data.phone, status=data.status)
     session.add(lead)
     session.commit()
-    return _redirect(_list_url(current), f"Заявка «{name}» добавлена.")
+    return lead
 
 
-@app.post("/leads/{lead_id}/status")
-def lead_set_status(
-    request: Request,
-    lead_id: int,
-    status: str = Form(...),
-    return_status: str = Form(""),
-    csrf_token: str = Form(""),
-    session: Session = Depends(get_session),
+@api.patch("/leads/{lead_id}", response_model=LeadOut)
+def update_lead_status(
+    lead_id: int, data: LeadStatusUpdate, session: Session = Depends(get_session)
 ):
-    _check_csrf(request, csrf_token)
     lead = session.get(Lead, lead_id)
     if lead is None:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
-
-    back = _list_url(_parse_status(return_status))
-    new_status = _parse_status(status)
-    if new_status is None:
-        return _redirect(back, "Ошибка: неизвестный статус.")
-
-    lead.status = new_status
+    lead.status = data.status
     session.commit()
-    return _redirect(back, f"Статус заявки «{lead.name}»: {new_status.label}.")
+    return lead
+
+
+app.include_router(api)
+
+# Собранный фронтенд (frontend/dist). В режиме разработки его раздаёт Vite.
+FRONTEND_DIST = Path(os.environ.get("FRONTEND_DIST", Path(__file__).parent.parent / "frontend" / "dist"))
+if FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
