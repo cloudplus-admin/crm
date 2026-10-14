@@ -23,3 +23,5 @@ th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eaeef2; }
 .msg { padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; background: #dafbe1; }
 .msg.error { background: #ffebe9; }
 .errors { color: #cf222e; font-size: 13px; margin-top: 4px; max-width: 260px; }
+.pagination { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.pagination button:disabled { background: #eaeef2; color: #57606a; border-color: #d0d7de; cursor: not-allowed; }
