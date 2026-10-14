@@ -10,6 +10,8 @@ input, select, button { font: inherit; padding: 6px 10px; border: 1px solid #d0d
 button { background: #1f6feb; color: #fff; border-color: #1f6feb; cursor: pointer; }
 button.link { background: none; border: none; color: #1f6feb; padding: 0 4px; margin-left: 4px; }
 button.link.active { font-weight: 600; color: #1f2328; }
+.search { margin-bottom: 12px; }
+.search input { width: min(100%, 320px); }
 table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eaeef2; }
 .badge { padding: 2px 8px; border-radius: 10px; font-size: 13px; background: #eaeef2; }

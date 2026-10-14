@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ApiError, Lead, LeadStatus, NewLead, StatusOption, api } from "./api";
+import { searchLeads } from "./search";
 
 const EMPTY_FORM: NewLead = { name: "", phone: "", status: "new" };
 
@@ -13,10 +14,12 @@ export default function LeadsPage() {
   const [statuses, setStatuses] = useState<StatusOption[]>([]);
   const [filter, setFilter] = useState<LeadStatus | "">("");
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [query, setQuery] = useState("");
   const [form, setForm] = useState<NewLead>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
+  const visibleLeads = searchLeads(leads, query);
 
   const labelOf = (status: LeadStatus) =>
     statuses.find((s) => s.value === status)?.label ?? status;
@@ -140,6 +143,16 @@ export default function LeadsPage() {
       </section>
 
       <section className="card">
+        <div className="search">
+          <label htmlFor="lead-search">Поиск заявок</label>
+          <input
+            id="lead-search"
+            type="search"
+            value={query}
+            placeholder="Имя или телефон"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
         <div className="filters">
           Фильтр по статусу:
           <button
@@ -171,7 +184,7 @@ export default function LeadsPage() {
             </tr>
           </thead>
           <tbody>
-            {leads.map((lead) => (
+            {visibleLeads.map((lead) => (
               <tr key={lead.id}>
                 <td>{lead.name}</td>
                 <td>{lead.phone}</td>
@@ -193,9 +206,9 @@ export default function LeadsPage() {
                 </td>
               </tr>
             ))}
-            {!loading && leads.length === 0 && (
+            {!loading && visibleLeads.length === 0 && (
               <tr>
-                <td colSpan={4}>Заявок нет.</td>
+                <td colSpan={4}>{query.trim() ? "Заявки не найдены" : "Заявок нет."}</td>
               </tr>
             )}
           </tbody>
